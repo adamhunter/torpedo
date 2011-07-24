@@ -41,7 +41,7 @@ propel.runtime.conf.file = database.xml
 
 # Database
 propel.database          = mysql
-propel.database.url      = mysql:host=localhost;dbname=$PROJECT_dev
+propel.database.url      = mysql:host=localhost;dbname=${PROJECT}_dev
 propel.database.user     = root
 propel.database.password = password
 propel.mysql.tableType   = InnoDB
@@ -106,7 +106,7 @@ cat > $PROJECT/config/database.xml <<EOF
       <datasource id="$PROJECT">
         <adapter>mysql</adapter> <!-- sqlite, mysql, myssql, oracle, or pgsql -->
         <connection>
-          <dsn>mysql:host=localhost;dbname=$PROJECT_dev</dsn>
+          <dsn>mysql:host=localhost;dbname=${PROJECT}_dev</dsn>
           <user>root</user>
           <password>password</password>
         </connection>
