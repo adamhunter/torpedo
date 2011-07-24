@@ -1,0 +1,230 @@
+
+PROJECT=$1
+
+if [ -z $PROJECT ] 
+then
+  echo "Usage: torpedo/bin/generate PROJECT"
+  exit 1
+fi
+
+echo "Generating Torpedo Project for $PROJECT"
+
+echo "Writitng Directories"
+mkdir -p $PROJECT/{app/{controllers,helpers,models,views/{layouts,site}},bin,config,db,lib,log,public,test,tmp,vendor}
+
+echo "Touching Files"
+touch $PROJECT/{.gitignore,config/{build.properties,database.xml{,.example},propel.php,routes.php},db/schema.xml}
+
+echo "Writing $PROJECT/.gitignore"
+cat > $PROJECT/.gitignore <<EOF
+.DS_Store
+config/database.xml
+config/*-conf.php
+config/classmap-*.php
+
+EOF
+
+echo "Writing $PROJECT/config/build.properties"
+cat > $PROJECT/config/build.properties <<EOF
+# Project
+propel.project           = $PROJECT
+propel.project.dir       = '.'
+
+# Directories
+propel.conf.dir          = \${propel.project.dir}/config
+propel.schema.dir        = \${propel.project.dir}/db
+propel.php.dir           = \${propel.project.dir}/app/models
+propel.phpconf.dir       = \${propel.project.dir}/config
+propel.sql.dir           = \${propel.project.dir}/db/sql
+propel.runtime.conf.file = database.xml
+
+# Database
+propel.database          = mysql
+propel.database.url      = mysql:host=localhost;dbname=$PROJECT_dev
+propel.database.user     = root
+propel.database.password = password
+propel.mysql.tableType   = InnoDB
+
+EOF
+
+echo "Symlinking build.properties to project root"
+ln -sf config/build.properties $PROJECT/build.properties
+
+echo "Writing $PROJECT/config/routes.php"
+cat > $PROJECT/config/routes.php <<EOF
+<?php 
+
+F3::set('AUTOLOAD','../app/controllers/');
+F3::route('GET /','site->home');
+EOF
+
+echo "Writing default site controller"
+cat > $PROJECT/app/controllers/site.php <<EOF
+<?php
+
+class Site extends TorpedoController
+{
+  function home() {
+    \$this->haml('site/home.html.haml', array('today' => strftime('%A, %B %e, %Y')));
+  }
+}
+
+EOF
+
+echo "Writing application layout"
+cat > $PROJECT/app/views/layouts/application.html.haml <<EOF
+!!!
+%html
+  %head
+    %title= ucfirst('$PROJECT')
+  %body
+    = \$content
+EOF
+
+echo "Writing home template"
+cat > $PROJECT/app/views/site/home.html.haml <<EOF
+%h1= ucfirst('$PROJECT')
+%h3 Welcome Home!
+%p
+  = "Today is \$today"
+
+EOF
+
+echo "Writing $PROJECT/config/database.xml"
+cat > $PROJECT/config/database.xml <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<config>
+  <log>
+    <type>file</type>
+    <name>log/$PROJECT.log</name>
+    <ident>propel-$PROJECT</ident>
+    <level>7</level>
+  </log>
+  <propel>
+    <datasources default="$PROJECT">
+      <datasource id="$PROJECT">
+        <adapter>mysql</adapter> <!-- sqlite, mysql, myssql, oracle, or pgsql -->
+        <connection>
+          <dsn>mysql:host=localhost;dbname=$PROJECT_dev</dsn>
+          <user>root</user>
+          <password>password</password>
+        </connection>
+      </datasource>
+    </datasources>
+  </propel>
+</config>
+
+EOF
+
+echo "Copying database.xml to database.xml.example"
+cp -f $PROJECT/config/database.xml{,.example}
+
+echo "Writing $PROJECT/config/propel.php"
+cat > $PROJECT/config/propel.php <<EOF
+<?php
+// Include the main Propel script
+require_once "../vendor/propel/runtime/lib/Propel.php";
+
+// Initialize Propel with the runtime configuration
+Propel::init("../config/$PROJECT-conf.php");
+
+// Add the generated 'classes' directory to the include path
+set_include_path("../app/models" . PATH_SEPARATOR .  get_include_path());
+
+EOF
+
+echo "Writing bootstrap (index.php)"
+cat > $PROJECT/index.php <<EOF
+<?php
+date_default_timezone_set('America/New_York');
+
+require_once 'vendor/f3/base.php';
+require_once 'vendor/haml/HamlParser.class.php';
+
+require_once 'lib/torpedo.php';
+
+require_once 'config/propel.php';
+require_once 'config/routes.php';
+
+F3::run();
+
+EOF
+
+echo "Writing public index.php"
+cat > $PROJECT/public/index.php <<EOF
+<?php 
+
+require '../index.php';
+
+EOF
+
+echo "Writing $PROJECT/public/.htaccess"
+cat > $PROJECT/public/.htaccess <<EOF
+<IfModule mod_rewrite.c>
+RewriteEngine On
+RewriteBase /
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule . /index.php [L]
+</IfModule>
+
+EOF
+
+echo "Writing base $PROJECT/db/schema.xml"
+cat > $PROJECT/db/schema.xml <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<database name="$PROJECT" defaultIdMethod="native">
+</database>
+
+EOF
+
+echo "Installing torpedo in lib"
+cat > $PROJECT/lib/torpedo.php <<EOF
+<?php
+
+class TorpedoController 
+{ 
+  function haml(\$file, \$values = array()) { 
+    \$cparser = new HamlParser('../app/views', '../tmp/haml'); 
+    \$lparser = new HamlParser('../app/views', '../tmp/haml'); 
+    foreach(\$values as \$key => \$value) { 
+      \$cparser->assign(\$key, \$value); 
+    } 
+    \$content = \$cparser->setFile(\$file)->render(); 
+    \$lparser->assign('content', \$content); 
+    \$layout  = \$lparser->setFile('layouts/application.html.haml'); 
+    echo \$layout; 
+  } 
+}
+
+EOF
+
+echo "Downloading and Installing vendored libraries"
+
+echo "Downloading and Installing propel"
+wget http://files.propelorm.org/propel-1.6.0.tar.gz -O $PROJECT/tmp/propel-1.6.0.tar.gz --quiet
+tar xzf $PROJECT/tmp/propel-1.6.0.tar.gz -C $PROJECT/tmp/
+mv -f $PROJECT/tmp/propel-1.6.0 $PROJECT/vendor/propel
+
+echo "Downloading and Installing F3"
+wget "http://downloads.sourceforge.net/project/fatfree/fatfree-2.0.2.zip?r=http%3A%2F%2Fsourceforge.net%2Fprojects%2Ffatfree%2Ffiles%2F&ts=1311542531&use_mirror=surfnet" -O $PROJECT/tmp/fatfree-2.0.2.zip --quiet
+unzip -q -d $PROJECT/tmp/fatfree-2.0.2 $PROJECT/tmp/fatfree-2.0.2.zip
+mv -f $PROJECT/tmp/fatfree-2.0.2/lib $PROJECT/vendor/f3
+
+echo "Downloading and Installing haml"
+wget "http://downloads.sourceforge.net/project/phphaml/phphaml/1.0RC1/phphaml-1.0RC1.tar?r=http%3A%2F%2Fsourceforge.net%2Fprojects%2Fphphaml%2Ffiles%2Fphphaml%2F1.0RC1%2F&ts=1311542720&use_mirror=voxel" -O $PROJECT/tmp/phphaml-1.0RC1.tar --quiet
+tar xzf $PROJECT/tmp/phphaml-1.0RC1.tar -C $PROJECT/tmp/
+mv -f $PROJECT/tmp/phphaml-1.0RC1/phpHaml/includes/haml $PROJECT/vendor/haml
+
+echo "Cleaning up $PROJECT/tmp"
+rm -rf $PROJECT/tmp/*
+
+echo "Setting up propel"
+cd $PROJECT && propel-gen > log/propel-setup.log
+cd -
+
+echo "Set tmp/haml to 777"
+mkdir $PROJECT/tmp/haml
+chmod 777 $PROJECT/tmp/haml
+
+echo "Done!"
