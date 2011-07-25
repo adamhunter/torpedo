@@ -139,12 +139,13 @@ cat > $PROJECT/index.php <<EOF
 <?php
 date_default_timezone_set('America/New_York');
 
+require_once 'config/propel.php';
+
 require_once 'vendor/f3/base.php';
 require_once 'vendor/haml/HamlParser.class.php';
 
 require_once 'lib/torpedo.php';
 
-require_once 'config/propel.php';
 require_once 'config/routes.php';
 
 F3::run();
