@@ -203,9 +203,9 @@ EOF
 echo "Downloading and Installing vendored libraries"
 
 echo "Downloading and Installing propel"
-wget http://files.propelorm.org/propel-1.6.0.tar.gz -O $PROJECT/tmp/propel-1.6.0.tar.gz --quiet
-tar xzf $PROJECT/tmp/propel-1.6.0.tar.gz -C $PROJECT/tmp/
-mv -f $PROJECT/tmp/propel-1.6.0 $PROJECT/vendor/propel
+wget http://files.propelorm.org/propel-1.6.1.tar.gz -O $PROJECT/tmp/propel-1.6.1.tar.gz --quiet
+tar xzf $PROJECT/tmp/propel-1.6.1.tar.gz -C $PROJECT/tmp/
+mv -f $PROJECT/tmp/propel-1.6.1 $PROJECT/vendor/propel
 
 echo "Downloading and Installing F3"
 wget "http://downloads.sourceforge.net/project/fatfree/fatfree-2.0.2.zip?r=http%3A%2F%2Fsourceforge.net%2Fprojects%2Ffatfree%2Ffiles%2F&ts=1311542531&use_mirror=surfnet" -O $PROJECT/tmp/fatfree-2.0.2.zip --quiet
